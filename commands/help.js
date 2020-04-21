@@ -1,5 +1,8 @@
+const _ = require("discord.js");
+
 module.exports = {
-    showHelp: () => {
-        return 'I don\'t have any commands to show right now.';
-    }
+    desiredArgs: 0,
+    execute: (message) => {
+      message.channel.send("I don't have any commands to show right now.");
+   }
 }
