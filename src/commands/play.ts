@@ -1,6 +1,7 @@
-const ytdl = require('ytdl-core');
+import ytdl from 'ytdl-core';
+import { Message } from 'discord.js';
 
-const play = async (message, args) => {
+const play = async (message: Message, args: string[]) => {
   try {
     const voiceChannel = message.member.voiceChannel;
     const songInfo = await ytdl.getInfo(args[0]);
@@ -25,6 +26,6 @@ const play = async (message, args) => {
   }
 }
 
-module.exports = {
+export {
   play,
 }
