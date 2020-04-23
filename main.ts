@@ -1,11 +1,11 @@
-const Discord = require('discord.js');
-const client = new Discord.Client();
+import * as Discord from 'discord.js';
+import TOKEN from './TOKEN.json';
 
-const TOKEN = require('./TOKEN.json');
+import { showHelp } from './src/commands/help';
+import { play } from './src/commands/play';
+
 const prefix = "--";
-
-const { showHelp } = require('./commands/help.js');
-const { play } = require('./commands/play.js');
+const client = new Discord.Client();
 
 client.on('ready', () => {
     console.log(`${client.user.tag} is now running`);
@@ -24,10 +24,10 @@ client.on('message', async (message) => {
             play(message, commandArguments);
             break;
         case "help":
-            showHelp();
+            showHelp(message);
             break;
         default:
-            showHelp();
+            showHelp(message);
             break;
     }
 });
