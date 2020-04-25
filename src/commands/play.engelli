@@ -1,0 +1,67 @@
+import ytdl from 'ytdl-core';
+import { Message, VoiceBroadcast } from 'discord.js';
+import { Readable } from 'stream';
+import { Observable } from '../util/observable'
+
+interface ISong {
+  title: string;
+  url: string;
+}
+
+interface IPlaylist {
+  songs: ISong[];
+}
+
+interface IPlayer {
+  songIndex: number;
+  currentSong: Observable<Readable | VoiceBroadcast>;
+}
+
+const playlist: IPlaylist & IPlayer = {
+  songs: [],
+  songIndex: 0,
+  currentSong: new Observable(null as any),
+} 
+
+const play = (context: IContext) => async (message: Message, args: string[]) => {
+  try {
+    const voiceChannel = message.member.voiceChannel;
+    
+    if (!voiceChannel) return message.channel.send(
+      "You need to be in a voice channel to use this command."
+    )
+    
+    const songInfo = await ytdl.getInfo(args[0]);
+    if (context.voiceConnection.length > 0) {
+      return playlist.songs.push({ title: songInfo.title, url: songInfo.video_url });
+    }
+
+    playlist.songs.push({ title: songInfo.title, url: songInfo.video_url });
+
+    const connection = await voiceChannel.join();
+
+    playlist.currentSong.subscribe((stream: Readable | VoiceBroadcast) => {
+      stream.addListener("end", () => {
+        console.log("Stream ended")
+        message.channel.send(`"${playlist.songs[playlist.songIndex].title}" has finished.`);
+        playlist.currentSong.value.removeAllListeners();
+        if (playlist.songIndex === playlist.songs.length - 1) {
+          connection.disconnect();
+          playlist.songs = [];
+          playlist.songIndex = 0;
+        } else {
+          playlist.songIndex = playlist.songIndex + 1
+          playlist.currentSong.value = connection.playStream(ytdl(playlist.songs[playlist.songIndex].url)).stream;
+        }
+      })
+    })
+    playlist.currentSong.value = connection.playStream(ytdl(playlist.songs[0].url)).stream;
+    
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+export {
+  play
+}
