@@ -1,4 +1,4 @@
-import { Message } from "discord.js";
+import { Message } from 'discord.js';
 
 const showHelp = (message: Message, prefix: string) => {
     return message.channel.send(`\`\`\`Usable commands:

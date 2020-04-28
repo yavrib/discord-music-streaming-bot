@@ -1,8 +1,8 @@
 import ytdl from 'ytdl-core';
 import { Readable } from 'stream';
-import { Message, VoiceBroadcast } from 'discord.js';
+import { Message, VoiceBroadcast, VoiceConnection } from 'discord.js';
 import { ICommand, IMetadataProvider } from '../../main';
-import { Observable } from "../util/observable";
+import { Observable } from '../util/observable';
 
 interface ISong {
   title: string;
@@ -18,77 +18,111 @@ interface IPlayer {
   currentSong: Observable<Readable | VoiceBroadcast>;
 }
 
-export abstract class ICommandModule {
-  static getCommands(): ICommand[] {
-    return [];
-  };
-}
-
 type Playlist = IPlaylist & IPlayer;
 
-
-export class Player extends ICommandModule {
+export class Player {
   constructor(metadata: IMetadataProvider) {
-    super();
     this.metadataProvider = metadata;
   }
+
   private metadataProvider: IMetadataProvider;
-  private playlist: Playlist = {
-    songs: [],
-    songIndex: 0,
-    currentSong: new Observable(null as any),
-  };
+  private playlists: Record<string, Playlist> = {};
+
   async play(message: Message, args: string[]) {
-    const guildId = this.metadataProvider.getGuildId();
-    const voiceConnections = this.metadataProvider.getVoiceConnections();
-    console.log("======")
-    console.log(voiceConnections[0]?.channel.guild)
-    console.log("======")
-    console.log(voiceConnections[0]?.channel.id)
-    console.log("======")
-    console.log(guildId)
-    console.log("======")
-    const voiceConnection = voiceConnections.find(voiceConnection => {
-      voiceConnection.channel.guild.id === guildId
-    });
-    
+    const playlist = this.getCurrentPlaylist();
+
     const userVoiceChannel = message.member.voiceChannel;
     if (!userVoiceChannel) return message.channel.send(
-      "You need to be in a voice channel to use this command."
-    )
-    
-    const songInfo = await ytdl.getInfo(args[0]);
-    console.log("======")
-    console.log(voiceConnection)
-    console.log("======")
+      'You need to be in a voice channel to use this command.'
+    );
 
-    if (voiceConnection) {
-      return this.playlist.songs.push({ title: songInfo.title, url: songInfo.video_url });
+    const songInfo = await ytdl.getInfo(args[0]);
+    playlist.songs.push({ title: songInfo.title, url: songInfo.video_url });
+
+    if (playlist.songs.length > 1) {
+      return message.channel.send(`Added to queue: "${songInfo.title}"`);
     }
 
     const newVoiceConnection = await userVoiceChannel.join();
 
-    this.playlist.songs.push({ title: songInfo.title, url: songInfo.video_url });
-    message.channel.send(`Now playing: "${this.playlist.songs[0].title}".`);
+    this.setup(message, newVoiceConnection);
 
-    this.playlist.currentSong.subscribe((stream: Readable | VoiceBroadcast) => {
-      stream.addListener("end", () => {
-        message.channel.send(`"${this.playlist.songs[this.playlist.songIndex].title}" has finished.`);
-        this.playlist.currentSong.value.removeAllListeners();
-        if (this.playlist.songIndex === this.playlist.songs.length - 1) {
-          newVoiceConnection.disconnect();
-          this.playlist.songs = [];
-          this.playlist.songIndex = 0;
+    playlist.currentSong.value = newVoiceConnection.playStream(
+      ytdl(playlist.songs[0].url)
+    ).stream;
+  }
+
+  stop() {
+    const playlist = this.getCurrentPlaylist();
+    this.getCurrentVoiceChannel()?.disconnect();
+    playlist.songs = [];
+    playlist.songIndex = 0;
+    playlist.currentSong.unsubscribeAll();
+    playlist.currentSong.value?.removeAllListeners();
+    playlist.currentSong.value?.destroy();
+  }
+
+  private setup(message: Message, voiceConnection: VoiceConnection) {
+    const playlist = this.getCurrentPlaylist();
+
+    playlist.currentSong.subscribe((stream: Readable | VoiceBroadcast) => {
+      message.channel.send(`Now playing: "${playlist.songs[playlist.songIndex].title}".`);
+      stream.addListener('end', () => {
+        message.channel.send(`"${playlist.songs[playlist.songIndex].title}" has finished.`);
+        if (playlist.songIndex === playlist.songs.length - 1) {
+          this.stop();
         } else {
-          this.playlist.songIndex = this.playlist.songIndex + 1
-          this.playlist.currentSong.value = newVoiceConnection.playStream(ytdl(this.playlist.songs[this.playlist.songIndex].url)).stream;
-          message.channel.send(`Now playing: "${this.playlist.songs[this.playlist.songIndex].title}".`);
+          playlist.songIndex = playlist.songIndex + 1
+          playlist.currentSong.value = voiceConnection.playStream(
+            ytdl(playlist.songs[playlist.songIndex].url)
+          ).stream;
         }
       })
     })
-    this.playlist.currentSong.value = newVoiceConnection.playStream(ytdl(this.playlist.songs[0].url)).stream;
   }
+
+  private getCurrentPlaylist(): Playlist {
+    const guildId = this.metadataProvider.getGuildId();
+    const playlist = this.playlists[guildId]
+    if (playlist) {
+      return playlist;
+    } else {
+      this.playlists[guildId] = {
+        songs: [],
+        songIndex: 0,
+        currentSong: new Observable(null as any),
+      }
+      return this.playlists[guildId];
+    }
+  }
+
+  private getCurrentVoiceChannel(): VoiceConnection | undefined {
+    const guildId = this.metadataProvider.getGuildId();
+    const voiceConnections = this.metadataProvider.getVoiceConnections();
+    const voiceChannel = voiceConnections.find(voiceConnection => {
+      return voiceConnection.channel.guild.id === guildId
+    });
+    return voiceChannel;
+  }
+
   static getCommands(): ICommand[] {
-    return [{shortVerb: "p", verb: "play", action: (instance: Player) => (message: Message, args: string[]) => { instance.play(message, args) }}];
+    return [
+      {
+        shortVerb: 'p',
+        verb: 'play',
+        action: (instance: Player) =>
+          (message: Message, args: string[]) => {
+            instance.play(message, args)
+          }
+      },
+      {
+        shortVerb: 's',
+        verb: 'stop',
+        action: (instance: Player) =>
+          () => {
+            instance.stop()
+          }
+      },
+    ];
   }
 }
