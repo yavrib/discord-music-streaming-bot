@@ -28,32 +28,6 @@ export class MessageInjector<T> {
   }
 };
 
-// type RegisteredModule = { module: typeof ICommandModule, instance: ICommandModule, injector: MessageInjector<Discord.Message>, name: Symbol }
-
-// class CommandBuilder {
-//   private registeredModules: RegisteredModule[] = [];
-
-//   register(module: RegisteredModule): void {
-//     this.registeredModules.push(module);
-//   }
-//   build(): { commands: Record<string, Function>, injector: MessageInjector<Discord.Message> } {
-//     return this.registeredModules.map(({ module, instance, injector }) => {
-//       return {
-//         commands: {
-//           ...module.getCommands().reduce((acc, command) => {
-//             acc[command.verb] = command.action(instance);
-//             acc[command.shortVerb] = command.action(instance);
-//             return acc;
-//           }, {} as any),
-//         },
-//         injector: injector,
-//       }
-//     }).reduce((acc, item) => ({ ...acc, ...item }), {} as any)
-//   }
-// }
-
-// export const commandBuilder = new CommandBuilder();
-
 const initialize = () => {
   const injector = new MessageInjector<Discord.Message>();
   const player = new Player({
