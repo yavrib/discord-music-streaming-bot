@@ -3,6 +3,7 @@ import { Readable } from 'stream';
 import { Message, VoiceBroadcast, VoiceConnection } from 'discord.js';
 import { ICommand, IMetadataProvider } from '../../main';
 import { Observable } from '../util/observable';
+import delay from '../util/delay';
 
 interface ISong {
   title: string;
@@ -47,6 +48,7 @@ export class Player {
 
     this.setup(message, newVoiceConnection);
 
+    console.time(playlist.songs[playlist.songIndex].title);
     playlist.currentSong.value = newVoiceConnection.playStream(
       ytdl(playlist.songs[0].url)
     ).stream;
@@ -62,19 +64,46 @@ export class Player {
     playlist.currentSong.value?.destroy();
   }
 
+  queue(message: Message) {
+    const playlist = this.getCurrentPlaylist();
+
+    const msg = playlist.songs.reduce((msg, song, index) => {
+      const songName = index === playlist.songIndex ? `${song.title.split('').map(_ => '=').join('')}
+${index + 1} ${song.title}
+${song.title.split('').map(_ => '=').join('')}` : `${index + 1}: ${song.title}`;
+
+      if (msg === '') {
+        return `${songName}`
+      }
+
+      return `${msg}
+${songName}
+`
+    }, '');
+
+    message.channel.send(msg);
+  }
+
   private setup(message: Message, voiceConnection: VoiceConnection) {
     const playlist = this.getCurrentPlaylist();
 
     playlist.currentSong.subscribe((stream: Readable | VoiceBroadcast) => {
       message.channel.send(`Now playing: "${playlist.songs[playlist.songIndex].title}".`);
-      stream.addListener('end', () => {
+      stream.addListener('end', async () => {
+        console.timeEnd(playlist.songs[playlist.songIndex].title);
+
+        await delay(3000);
+
         message.channel.send(`"${playlist.songs[playlist.songIndex].title}" has finished.`);
         if (playlist.songIndex === playlist.songs.length - 1) {
           this.stop();
         } else {
           playlist.songIndex = playlist.songIndex + 1
+          console.time(playlist.songs[playlist.songIndex].title);
           playlist.currentSong.value = voiceConnection.playStream(
-            ytdl(playlist.songs[playlist.songIndex].url)
+            ytdl(playlist.songs[playlist.songIndex].url, {
+              quality: 'highestaudio',
+            })
           ).stream;
         }
       })
@@ -112,7 +141,7 @@ export class Player {
         verb: 'play',
         action: (instance: Player) =>
           (message: Message, args: string[]) => {
-            instance.play(message, args)
+            instance.play(message, args);
           }
       },
       {
@@ -120,9 +149,16 @@ export class Player {
         verb: 'stop',
         action: (instance: Player) =>
           () => {
-            instance.stop()
+            instance.stop();
           }
       },
+      {
+        verb: 'queue',
+        action: (instance: Player) =>
+          (message: Message) => {
+            instance.queue(message);
+          }
+      } as any,
     ];
   }
 }

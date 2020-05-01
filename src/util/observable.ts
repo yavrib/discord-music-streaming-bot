@@ -19,6 +19,7 @@ export class Observable<T> {
     }
 
     subscribe(fn: Function) {
+        console.log(this.subscribers);
         this.subscribers.push(fn);
     }
 
