@@ -1,3 +1,19 @@
 # discord-music-streaming-bot
 
-At some point in the future this is going to be a bot that you can clone and serve for yourself
+## Getting started
+
+- Install dependencies
+
+- Create TOKEN.json for authentication as
+
+```json
+{
+  "token" : "${DISCORD_BOT_TOKEN_GOES_HERE}"
+}
+```
+
+- Run commands for building and running
+
+```sh
+$ npm run build && npm run start
+```

@@ -38,10 +38,15 @@ export class Player {
     );
 
     const songInfo = await ytdl.getInfo(args[0]);
-    playlist.songs.push({ title: songInfo.title, url: songInfo.video_url });
+    const title = songInfo.videoDetails.title
+    const url = songInfo.videoDetails.video_url
+    playlist.songs.push({
+      title,
+      url,
+    });
 
     if (playlist.songs.length > 1) {
-      return message.channel.send(`Added to queue: "${songInfo.title}"`);
+      return message.channel.send(`Added to queue: "${title}"`);
     }
 
     const newVoiceConnection = await userVoiceChannel.join();
