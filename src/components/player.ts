@@ -97,17 +97,15 @@ ${songName}
       
       stream.addListener('end', async () => {
 
-        if (stream.listenerCount('close' && 'end') > 2) {
-          stream.addListener('close', async () => {
+        if (!message.guild.voiceConnection) {
             await delay(3000);
             message.channel.send("A user disconnected the bot from the channel.");
-          }
-        )
+            this.stop()
         } else {
-          
           console.timeEnd(playlist.songs[playlist.songIndex].title);
           await delay(3000);
-          message.channel.send(`"${playlist.songs[playlist.songIndex].title}" has finished.`);
+          message.channel.send(`"${playlist.songs[playlist.songIndex].title}" has finished.`)
+
           if (playlist.songIndex === playlist.songs.length - 1) {
             this.stop();
           } else {
