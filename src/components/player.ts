@@ -94,23 +94,33 @@ ${songName}
 
     playlist.currentSong.subscribe((stream: Readable | VoiceBroadcast) => {
       message.channel.send(`Now playing: "${playlist.songs[playlist.songIndex].title}".`);
+      
       stream.addListener('end', async () => {
-        console.timeEnd(playlist.songs[playlist.songIndex].title);
 
-        await delay(3000);
-
-        message.channel.send(`"${playlist.songs[playlist.songIndex].title}" has finished.`);
-        if (playlist.songIndex === playlist.songs.length - 1) {
-          this.stop();
+        if (stream.listenerCount('close' && 'end') > 2) {
+          stream.addListener('close', async () => {
+            await delay(3000);
+            message.channel.send("A user disconnected the bot from the channel.");
+          }
+        )
         } else {
-          playlist.songIndex = playlist.songIndex + 1
-          console.time(playlist.songs[playlist.songIndex].title);
-          playlist.currentSong.value = voiceConnection.playStream(
-            ytdl(playlist.songs[playlist.songIndex].url, {
-              quality: 'highestaudio',
-            })
-          ).stream;
-        }
+          
+          console.timeEnd(playlist.songs[playlist.songIndex].title);
+          await delay(3000);
+          message.channel.send(`"${playlist.songs[playlist.songIndex].title}" has finished.`);
+          if (playlist.songIndex === playlist.songs.length - 1) {
+            this.stop();
+          } else {
+            playlist.songIndex = playlist.songIndex + 1
+            console.time(playlist.songs[playlist.songIndex].title);
+            playlist.currentSong.value = voiceConnection.playStream(
+              ytdl(playlist.songs[playlist.songIndex].url, {
+                quality: 'highestaudio',
+              })
+            ).stream;
+          }}
+        
+        
       })
     })
   }
